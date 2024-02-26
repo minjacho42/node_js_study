@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 let express = require('express');
@@ -30,10 +29,15 @@ app.get("/callback", (req, res)=>{
 		redirect_uri: 'http://13.124.198.32:4242/callback'
 	});
 	accessToken.then(
-		result => console.log(result),
-		error => console.log(error)
+		result => {
+			console.log(result)
+			res.redirect('http://13.124.198.32:4242/user')
+		},
+		error => {
+			console.log(error)
+			res.redirect('http://13.124.198.32:4242/auth')
+		}
 	)
-	res.redirect('http://13.124.198.32:4242/user')
 })
 
 app.get("/user", (req, res)=>{
