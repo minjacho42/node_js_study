@@ -80,17 +80,33 @@ app.get("/user", (req, res)=>{
 	res.send("user!!")
 })
 
+const jwt = require("./jwt.js")
 
-const jwt = require('jsonwebtoken');
-const secret = process.env.JWT_SECRET;
+app.get("/jwt/sign", (req, res) => {
+	const user_id = req.query.user_id;
+	const token = jwt.sign(user_id);
+	console.log(user_id);
+	console.log(token);
+	res.send(token);
+})
 
-app.get("/jwt", (req, res)=>
-{
-	console.log(req)
-	res.send(jwt.sign({
-		id:'12345'
-	}, secret, {
-		algorithm: 'HS256',
-		expiresIn: '1h'
-	}))
+app.get("/jwt/verify", (req, res) => {
+	const data = req.headers.token;
+	const user_id = req.query.user_id;
+	res.send(jwt.verify(data));
+})
+
+app.get("/jwt/refresh", async (req, res) => {
+	const user_id = req.query.user_id;
+	const token = await jwt.refresh(user_id);
+	console.log(user_id);
+	console.log(token);
+	res.send(token);
+})
+
+app.get("/jwt/refresh_verify", async (req, res) => {
+	const data = req.headers.token;
+	const user_id = req.query.user_id;
+	const result = await jwt.refreshVerify(data, user_id);
+	res.send(result);
 })

@@ -1,18 +1,14 @@
-const dotenv = require("dotenv").config();
-const {promisify} = require('util');
 const jwt = require('jsonwebtoken');
-const redis = require('redis');
-const secret = process.env.JWT_SECRET;
-const redisClient = redis.createClient(process.env.REDIS_PORT)
+const createRedisClient = require('./redis.js');
+const access_secret = process.env.JWT_ACCESS_SECRET;
+const refresh_secret = process.env.JWT_REFRESH_SECRET;
 
 module.exports = {
-	sign: (user) => { // access token 발급
+	sign: (userId) => { // access token 발급
 		const payload = {
-			id: user.id,
-			role: user.role
+			id: userId
 		}
-
-		return jwt.sign(payload, secret, { // secret으로 발급
+		return jwt.sign(payload, access_secret, { // access_secret 발급
 			algorithm: 'HS256',
 			expiresIn: '1h'
 		});
@@ -20,33 +16,48 @@ module.exports = {
 	verify: (token) => { // access token 검증
 		let decoded = null;
 		try {
-			decoded = jwt.verify(token, secret);
+			decoded = jwt.verify(token, access_secret);
 			return {
-				ok: true,
-				id: decoded.id,
-				role: decoded.role
+				verified: true,
+				id: decoded.id
 			};
 		} catch (error) {
 			return {
-				ok: false,
+				verified: false,
 				message: error.message
 			};
 		}
 	},
-	refresh: () => { // refresh token 발급
-		return jwt.sign({}, secret, {
+	refresh: async (userId) => { // refresh token 발급
+		const data = jwt.sign({
+			id: userId
+		}, refresh_secret, {
 			algorithm: 'HS256',
 			expiresIn: '14d',
 		})
+		try{
+			const redisClient = await createRedisClient();
+			// console.log(redisClient);
+			redisClient.set(userId, data, (err, reply) => {
+				if (err) {
+					console.error("refresh token add : " + err);
+				} else {
+					console.log("refresh token add : " + reply);
+				}
+			})
+			return data
+		} catch (err) {
+			throw new Error(err);
+			return false;
+		}
 	},
 	refreshVerify: async (token, userId) => { // refresh token 검증
-		const getAsync = promisify(redisClient.get).bind(redisClient);
-
 		try {
-			const data = await getAsync(userId);
+			const redisClient = await createRedisClient();
+			const data = await redisClient.get(userId);
 			if (token === data) {
 				try {
-					jwt.verify(token, secret);
+					jwt.verify(token, refresh_secret);
 					return true;
 				} catch (err) {
 					return false;
